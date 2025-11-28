@@ -4,6 +4,7 @@ section .data
 
 alphabet: db "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
+
 section .text
 global _3bto4a
 
@@ -14,9 +15,7 @@ _3bto4a:
 
     ; Salva o conteúdo do registrador RBX e armazena o endereço da tabela de conversão
     push rbx
-    mov bx, alphabet
-
-    mov bx, db
+    lea rbx, [rel alphabet] ; Carrega endereço relativo da tabela de caracteres do Base64
 
     ; Armazena o conteúdo de RDX em R8
     mov r8, rdx
