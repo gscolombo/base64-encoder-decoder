@@ -1,0 +1,6 @@
+*.o
+*.bin
+*.txt
+exemplos/*
+.vscode
+b64

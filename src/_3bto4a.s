@@ -11,7 +11,7 @@ global _3bto4a
 _3bto4a:
     ; rdi := 3 Bytes de entrada
     ; rsi := 4 bytes de saída
-    ; rdx := Quantidade de bytes que resta converter
+    ; rdx := Quantidade de bytes que resta converter (1, 2 ou 3)
 
     ; Salva o conteúdo do registrador RBX e armazena o endereço da tabela de conversão
     push rbx
@@ -20,27 +20,46 @@ _3bto4a:
     ; Armazena o conteúdo de RDX em R8
     mov r8, rdx
 
-    movzx ecx, byte [rdi]       ; ecx := 0x000000[byte0]
-    shl ecx, 16                 ; ecx := 0x00[byte0]0000
-    movzx edx, byte [rdi + 1]   ; edx := 0x000000[byte1]
-    shl edx, 8                  ; edx := 0x0000[byte1]00
-    or ecx, edx                 ; ecx := 0x00[byte0][byte1]00
-    movzx edx, byte [rdi + 2]     ; edx := 0x000000[byte2]
-    or  ecx, edx                ; ecx := 0x00[byte0][byte1][byte2]
+    ; Inicializa ECX com zero
+    xor ecx, ecx
 
-    ; ecx := 0x[byte0][byte1][byte2]00
+    ; Carrega o primeiro byte (sempre presente)
+    movzx eax, byte [rdi]       ; eax := 0x000000[byte0]
+    shl eax, 16                 ; eax := 0x00[byte0]0000
+    or ecx, eax                 ; ecx := 0x00[byte0]0000
 
-    ; Primeiro caractere
+    ; Verifica se há segundo byte
+    cmp r8, 1
+    jle .process                ; Se só tem 1 byte, processa
+
+    ; Carrega o segundo byte
+    movzx eax, byte [rdi + 1]   ; eax := 0x000000[byte1]
+    shl eax, 8                  ; eax := 0x0000[byte1]00
+    or ecx, eax                 ; ecx := 0x00[byte0][byte1]00
+
+    ; Verifica se há terceiro byte
+    cmp r8, 2
+    jle .process                ; Se só tem 2 bytes, processa
+
+    ; Carrega o terceiro byte
+    movzx eax, byte [rdi + 2]   ; eax := 0x000000[byte2]
+    or ecx, eax                 ; ecx := 0x00[byte0][byte1][byte2]
+
+.process:
+    ; ecx agora contém os bytes alinhados corretamente
+
+    ; Primeiro caractere (sempre presente)
     mov eax, ecx
-    shr eax, 18         ; 16 bits dos bytes 1 e 2 mais 2 bits (LSB) do byte 0
-    xlatb           
+    shr eax, 18                 ; Extrai os 6 bits mais significativos
+    and eax, 0x3F               ; Máscara de segurança
+    movzx eax, byte [rbx + rax] ; Traduz usando tabela
     mov [rsi], al
 
-    ; Segundo caractere
+    ; Segundo caractere (sempre presente)
     mov eax, ecx
-    shr eax, 12         ; 8 bits do bytes 2 mais 4 bits (LSB) do byte 1
-    and eax, 0x3F       ; Máscara de bits para filtrar os 6 primeiros bits
-    xlatb
+    shr eax, 12                 ; Extrai os próximos 6 bits
+    and eax, 0x3F               ; Máscara para filtrar os 6 bits
+    movzx eax, byte [rbx + rax]
     mov [rsi + 1], al
 
     ; Verifica se falta somente um byte para conversão
@@ -50,32 +69,28 @@ _3bto4a:
     ; Terceiro caractere
     mov eax, ecx
     shr eax, 6
-    and eax, 0x3F       ; Máscara de bits para filtrar os 6 primeiros bits
-    xlatb
+    and eax, 0x3F               ; Máscara para filtrar os 6 bits
+    movzx eax, byte [rbx + rax]
     mov [rsi + 2], al
 
-
-    ; Verifica se falta somente dois bytes para conversão
+    ; Verifica se faltam somente dois bytes para conversão
     cmp r8, 2          
     je .pad1
 
+    ; Quarto caractere (3 bytes completos)
     mov eax, ecx
-    and eax, 0x3F       ; Máscara de bits para filtrar os 6 primeiros bits
-    xlatb
+    and eax, 0x3F               ; Máscara para filtrar os 6 bits
+    movzx eax, byte [rbx + rax]
     mov [rsi + 3], al
     jmp .end
 
-    .pad2:
-        mov byte [rsi + 2], '='
-    .pad1:
-        mov byte [rsi + 3], '='
+.pad2:
+    ; Apenas 1 byte de entrada: C0 C1 = =
+    mov byte [rsi + 2], '='
+.pad1:
+    ; Apenas 2 bytes de entrada: C0 C1 C2 =
+    mov byte [rsi + 3], '='
 
-    .end:
-        pop rbx
-        ret
-    
-
-
-
-    
-
+.end:
+    pop rbx
+    ret
