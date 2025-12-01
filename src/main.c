@@ -55,7 +55,6 @@ char *btoa(FILE *in)
 
     if (lin == 0) return NULL;
 
-    size_t pads = (3 - (lin % 3)) % 3;                // Quantidade de caracteres "="
     size_t nchars = ceil(lin / 3.) * 4;               // Quantidade de caracteres Base64
     size_t lines = (nchars > 0) ? (nchars - 1) / 76 : 0;  // Quantidade de quebras de linha
     size_t lout = nchars + (lines * 2) + 1;           // Tamanho total (com \r\n e terminador)
